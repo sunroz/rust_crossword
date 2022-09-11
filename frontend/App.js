@@ -3,38 +3,50 @@ import React, { useCallback, useRef, useState } from "react";
 import Crossword from "react-crossword-near";
 import { createGridData, loadGuesses } from "react-crossword-near/dist/es/util";
 import sha256 from "js-sha256";
-import { parseSolutionSeedPhrase } from "./utils";
-import { SignInPrompt, SignOutButton } from "./ui-components";
+import { parseSolutionSeedPhrase, mungeBlockchainCrossword } from "./utils";
 
 import "./assets/global.css";
 
-export default function App({ isSignedIn, contract, wallet, data }) {
+export default function App({
+  contract,
+  wallet,
+  isSignedIn,
+  solutionHash,
+  data,
+}) {
   const [uiPleaseWait, setUiPleaseWait] = React.useState(true);
-  const [solutionHash, setSolutionHash] = React.useState();
+  // const [solutionHash, setSolutionHash] = useState("");
+  // const [data, setData] = useState({});
   const [solutionFound, setSolutionFound] = useState(false);
 
   const crossword = useRef();
 
   // Get blockchian state once on component load
   React.useEffect(() => {
-    contract
-      .getSolution()
-      .then(setSolutionHash)
-      .catch(alert)
-      .finally(() => {
-        setUiPleaseWait(false);
-      });
+    // contract
+    //   .getUnsolvedPuzzles()
+    //   .then((chainData) => {
+    //     console.log("chainData");
+    //     console.log(chainData);
+    //     // There may not be any crossword puzzles to solve, check this.
+    //     if (chainData.puzzles.length) {
+    //       const solutionHash = chainData.puzzles[0]["solution_hash"];
+    //       const data = mungeBlockchainCrossword(chainData.puzzles);
+    //       console.log(data);
+    //       setSolutionHash(solutionHash);
+    //       setData(data);
+    //     } else {
+    //       console.log("Oof, there's no crossword to play right now, friend.");
+    //     }
+    //   })
+    //   .catch(alert)
+    //   .finally(() => {
+    //     setUiPleaseWait(false);
+    //   });
   }, []);
 
-  /// If user not signed-in with wallet - show prompt
-  if (!isSignedIn) {
-    // Sign-in flow will reload the page later
-    return (
-      <SignInPrompt greeting={solutionHash} onClick={() => wallet.signIn()} />
-    );
-  }
-
   const onCrosswordComplete = useCallback(async (completeCount) => {
+    console.log("onCrosswordComplete");
     if (completeCount !== false) {
       let gridData = createGridData(data).gridData;
       loadGuesses(gridData, "guesses");
@@ -44,6 +56,7 @@ export default function App({ isSignedIn, contract, wallet, data }) {
 
   // This function is called when all entries are filled
   async function checkSolution(gridData) {
+    console.log("checkSolution");
     let seedPhrase = parseSolutionSeedPhrase(data, gridData);
     let answerHash = sha256.sha256(seedPhrase);
     // Compare crossword solution's public key with the known public key for this puzzle
@@ -59,20 +72,25 @@ export default function App({ isSignedIn, contract, wallet, data }) {
 
   return (
     <>
-      <SignOutButton
-        accountId={wallet.accountId}
-        onClick={() => wallet.signOut()}
-      />
       <main className={uiPleaseWait ? "please-wait" : ""}>
         <div id="page">
           <h1>NEAR Crossword Puzzle</h1>
           <div id="crossword-wrapper">
+            <div id="login">
+              {isSignedIn ? (
+                <button onClick={() => wallet.signOut()}>Log out</button>
+              ) : (
+                <button onClick={() => wallet.signIn()}>Log in</button>
+              )}
+            </div>
             <h3>Status: {solutionFound}</h3>
-            <Crossword
-              data={data}
-              ref={crossword}
-              onCrosswordComplete={onCrosswordComplete}
-            />
+            {isSignedIn && (
+              <Crossword
+                data={data}
+                ref={crossword}
+                onCrosswordComplete={onCrosswordComplete}
+              />
+            )}
             <p>
               Thank you{" "}
               <a
