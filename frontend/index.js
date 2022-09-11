@@ -34,7 +34,7 @@ window.onload = wallet
         isSignedIn={isSignedIn}
         contract={contract}
         wallet={wallet}
-        solutionHash={solutionHash}
+        hash={solutionHash}
         data={data}
       />,
       document.getElementById("root")

@@ -3,26 +3,19 @@ import React, { useCallback, useRef, useState } from "react";
 import Crossword from "react-crossword-near";
 import { createGridData, loadGuesses } from "react-crossword-near/dist/es/util";
 import sha256 from "js-sha256";
-import { parseSolutionSeedPhrase, mungeBlockchainCrossword } from "./utils";
+import { parseSolutionSeedPhrase } from "./utils";
 
 import "./assets/global.css";
 
-export default function App({
-  contract,
-  wallet,
-  isSignedIn,
-  solutionHash,
-  data,
-}) {
-  const [uiPleaseWait, setUiPleaseWait] = React.useState(true);
-  // const [solutionHash, setSolutionHash] = useState("");
-  // const [data, setData] = useState({});
-  const [solutionFound, setSolutionFound] = useState(false);
-
+export default function App({ contract, wallet, isSignedIn, hash, data }) {
   const crossword = useRef();
+  const [solutionFound, setSolutionFound] = useState(false);
+  const [uiPleaseWait, setUiPleaseWait] = React.useState(true);
+  const [solutionHash, setSolutionHash] = useState(hash);
+  const [transactionHash, setTransactionHash] = useState(false);
 
   // Get blockchian state once on component load
-  React.useEffect(() => {
+  /*  React.useEffect(() => {
     // contract
     //   .getUnsolvedPuzzles()
     //   .then((chainData) => {
@@ -43,7 +36,7 @@ export default function App({
     //   .finally(() => {
     //     setUiPleaseWait(false);
     //   });
-  }, []);
+  }, []); */
 
   const onCrosswordComplete = useCallback(async (completeCount) => {
     console.log("onCrosswordComplete");
@@ -59,11 +52,34 @@ export default function App({
     console.log("checkSolution");
     let seedPhrase = parseSolutionSeedPhrase(data, gridData);
     let answerHash = sha256.sha256(seedPhrase);
+    console.log("solutionHash", solutionHash);
+    console.log("answerHash", answerHash);
     // Compare crossword solution's public key with the known public key for this puzzle
     // (It was given to us when we first fetched the puzzle in index.js)
     if (answerHash === solutionHash) {
       console.log("You're correct!");
       setSolutionFound("Correct!");
+
+      // Clean up and get ready for next puzzle
+      localStorage.removeItem("guesses");
+      setSolutionHash(null);
+
+      let functionCallResult = await contract.submitSolution(
+        seedPhrase,
+        "Yay I won!"
+      );
+
+      if (
+        functionCallResult &&
+        functionCallResult.transaction &&
+        functionCallResult.transaction.hash
+      ) {
+        console.log(
+          "Transaction hash for explorer",
+          functionCallResult.transaction.hash
+        );
+        setTransactionHash(functionCallResult.transaction.hash);
+      }
     } else {
       console.log("That's not the correct solution. :/");
       setSolutionFound("Not correct yet");
